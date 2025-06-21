@@ -1,14 +1,20 @@
-
 import React, { useState } from 'react';
 import { DysfunctionalThoughtEntry, SelectedEmotion } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 import Modal from './Modal';
 
 const HistoryTable: React.FC = () => {
-  const [entries, setEntries] = useLocalStorage<DysfunctionalThoughtEntry[]>('dysfunctionalThoughts', []);
+  const [entries, setEntries] = useLocalStorage<DysfunctionalThoughtEntry[]>('dysfunctionalThoughts', [], { encrypt: true });
   const [selectedEntry, setSelectedEntry] = useState<DysfunctionalThoughtEntry | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [entryToDelete, setEntryToDelete] = useState<DysfunctionalThoughtEntry | null>(null);
+
+  const handleClearAllData = () => {
+    const isConfirmed = window.confirm("Você tem certeza que deseja apagar TODOS os registros? Esta ação não pode ser desfeita.");
+    if (isConfirmed) {
+      setEntries([]);
+    }
+  };
 
   const viewEntry = (entry: DysfunctionalThoughtEntry) => {
     setSelectedEntry(entry);
@@ -52,7 +58,17 @@ const HistoryTable: React.FC = () => {
 
   return (
     <div className="bg-white shadow-xl rounded-lg overflow-x-auto">
-      <h2 className="text-2xl font-semibold text-sky-800 p-6">Histórico de Pensamentos</h2>
+      <div className="flex justify-between items-center p-6 border-b border-gray-200">
+        <h2 className="text-2xl font-semibold text-sky-800">Histórico de Pensamentos</h2>
+        {entries.length > 0 && (
+          <button 
+            onClick={handleClearAllData} 
+            className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md shadow-sm transition-colors"
+          >
+            Limpar Tudo
+          </button>
+        )}
+      </div>
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>

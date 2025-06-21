@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface ModalProps {
@@ -6,9 +5,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  footer?: React.ReactNode;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer }) => {
   if (!isOpen) return null;
 
   return (
@@ -37,12 +37,14 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
           {children}
         </div>
         <div className="flex justify-end p-4 sm:p-5 border-t border-gray-200">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 rounded-md shadow-sm transition-colors"
-          >
-            Fechar
-          </button>
+          {footer ? footer : (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 rounded-md shadow-sm transition-colors"
+            >
+              Fechar
+            </button>
+          )}
         </div>
       </div>
       <style>{`

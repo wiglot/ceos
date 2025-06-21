@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -27,6 +26,9 @@ const Header: React.FC = () => {
             </Link>
             <Link to="/history" className={navLinkClasses('/history')}>
               Histórico
+            </Link>
+            <Link to="/about-method" className={navLinkClasses('/about-method')}>
+              Sobre o Método
             </Link>
           </div>
         </div>

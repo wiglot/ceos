@@ -1,16 +1,37 @@
-
 import { useState, useCallback } from 'react';
+import { encrypt, decrypt } from '../utils/crypto';
 
-function useLocalStorage<T,>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
+interface UseLocalStorageOptions {
+  encrypt?: boolean;
+}
+
+function useLocalStorage<T>(key: string, initialValue: T, options?: UseLocalStorageOptions): [T, (value: T | ((val: T) => T)) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     if (typeof window === 'undefined') {
       return initialValue;
     }
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      if (!item) return initialValue;
+
+      if (options?.encrypt) {
+        try {
+          const decrypted = decrypt(item);
+          return JSON.parse(decrypted);
+        } catch (error) {
+          console.warn(`Falha ao descriptografar '${key}', tratando como texto plano.`, error);
+          try {
+            return JSON.parse(item);
+          } catch (e) {
+            console.error(`Falha ao analisar o fallback de texto plano para '${key}'.`, e);
+            return initialValue;
+          }
+        }
+      }
+
+      return JSON.parse(item);
     } catch (error) {
-      console.error(`Error reading localStorage key "${key}":`, error);
+      console.error(`Erro ao ler a chave de localStorage "${key}":`, error);
       return initialValue;
     }
   });
@@ -20,12 +41,16 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, (value: T | ((va
       const valueToStore = value instanceof Function ? value(storedValue) : value;
       setStoredValue(valueToStore);
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        let stringifiedValue = JSON.stringify(valueToStore);
+        if (options?.encrypt) {
+          stringifiedValue = encrypt(stringifiedValue);
+        }
+        window.localStorage.setItem(key, stringifiedValue);
       }
     } catch (error) {
-      console.error(`Error setting localStorage key "${key}":`, error);
+      console.error(`Erro ao definir a chave de localStorage "${key}":`, error);
     }
-  }, [key, storedValue]);
+  }, [key, storedValue, options?.encrypt]);
 
   return [storedValue, setValue];
 }

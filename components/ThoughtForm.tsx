@@ -1,4 +1,4 @@
-import React, { useState, FormEvent, useCallback } from "react";
+import React, { useState, FormEvent, useCallback, useEffect } from "react";
 import {
   DysfunctionalThoughtEntry,
   SelectedEmotion,
@@ -6,7 +6,7 @@ import {
   AlternativeResponseRecord,
 } from "../types";
 import useLocalStorage from "../hooks/useLocalStorage";
-import EmotionSelector from "./EmotionSelector";
+import EmotionDropdownSelector from './EmotionDropdownSelector';
 // useNavigate is still imported but not directly used for the primary navigation after submit due to blob URL issues.
 // It's good practice to keep it if other navigation aspects might use it or if the blob issue is resolved/circumvented differently later.
 import { useNavigate } from "react-router-dom";
@@ -16,6 +16,7 @@ const ThoughtForm: React.FC = () => {
   const [entries, setEntries] = useLocalStorage<DysfunctionalThoughtEntry[]>(
     "dysfunctionalThoughts",
     [],
+    { encrypt: true }
   );
 
   // 1. Date
@@ -43,6 +44,22 @@ const ThoughtForm: React.FC = () => {
     useState<SelectedEmotion[]>([]);
   const [reassessmentActionPlan, setReassessmentActionPlan] =
     useState<string>("");
+
+  useEffect(() => {
+    // Sincroniza as emoções de reavaliação com as emoções iniciais,
+    // mantendo a intensidade já ajustada na reavaliação.
+    setReassessmentCurrentEmotions(prevReassessment => {
+      // Mapeia as emoções iniciais para a nova lista de reavaliação
+      return initialEmotions.map(initialEmotion => {
+        // Procura se a emoção já existe na lista de reavaliação para manter a intensidade
+        const existingEmotion = prevReassessment.find(
+          re => re.emotionId === initialEmotion.emotionId
+        );
+        // Se existir, retorna com a intensidade da reavaliação. Se não, retorna a emoção inicial.
+        return existingEmotion || initialEmotion;
+      });
+    });
+  }, [initialEmotions]);
 
   // Memoized handlers for simple input fields
   const handleDateChange = useCallback(
@@ -236,11 +253,10 @@ const ThoughtForm: React.FC = () => {
       </div>
 
       {/* 3. Emoções Iniciais */}
-      <EmotionSelector
-        idPrefix="initial"
-        label="3. Emoções, Sentimentos ou Sensações Iniciais (Intensidade 0-100):"
+      <EmotionDropdownSelector
         selectedEmotions={initialEmotions}
         onChange={setInitialEmotions}
+        label="Selecione suas emoções:"
       />
 
       {/* 4. Pensamentos Automáticos */}
@@ -491,11 +507,10 @@ const ThoughtForm: React.FC = () => {
         )}
 
         {/* Emoções Atuais */}
-        <EmotionSelector
-          idPrefix="reassessment"
-          label="Quais emoções você sente agora? (Intensidade 0-100):"
+        <EmotionDropdownSelector
           selectedEmotions={reassessmentCurrentEmotions}
           onChange={setReassessmentCurrentEmotions}
+          label="Quais emoções você sente agora? (Intensidade 0-100):"
         />
 
         {/* Plano de Ação */}
