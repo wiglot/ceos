@@ -1,4 +1,5 @@
 import './index.css';
+import './assets/favicon.ico'
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';

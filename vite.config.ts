@@ -1,10 +1,13 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
+import postcss from './postcss.config.js';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      
+      css: {
+        postcss,
+      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

@@ -1,10 +1,10 @@
-
 export interface Emotion {
   id: string; // e.g., 'alegria_extasia'
   name: string; // e.g., 'Êxtase'
   baseEmotion: string; // e.g., 'Alegria'
   intensityLevel: 1 | 2 | 3; // 3 = most intense (inner), 2 = mid, 1 = least intense (outer)
   color: string; // hex color
+  definition?: string; // Optional: A rich text description of the emotion
 }
 
 export interface SelectedEmotion {

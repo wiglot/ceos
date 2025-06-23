@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Emotion, SelectedEmotion } from '../types';
 import { PLUTCHIK_EMOTIONS_DEFINITIONS, PLUTCHIK_BASE_EMOTIONS_ORDER } from '../constants';
+import EmotionInfo from './EmotionInfo';
 
 interface EmotionDropdownSelectorProps {
   selectedEmotions: SelectedEmotion[];
@@ -60,6 +61,13 @@ const EmotionDropdownSelector: React.FC<EmotionDropdownSelectorProps> = ({ selec
     onChange(selectedEmotions.filter(e => e.emotionId !== emotionId));
   };
 
+  const handleIntensityChange = (emotionId: string, intensity: number) => {
+    const updatedEmotions = selectedEmotions.map(emotion =>
+      emotion.emotionId === emotionId ? { ...emotion, intensity: intensity } : emotion
+    );
+    onChange(updatedEmotions);
+  };
+
   return (
     <div className="space-y-4">
       {label && <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>}
@@ -90,7 +98,7 @@ const EmotionDropdownSelector: React.FC<EmotionDropdownSelectorProps> = ({ selec
                 <button
                   type="button"
                   className="w-full text-left px-4 py-2 font-bold bg-gray-50 hover:bg-gray-100 border-b border-gray-200 flex items-center"
-                  onClick={() => setOpenPrimary(group.base === openPrimary ? null : group.base)}
+                  onClick={() => setOpenPrimary(group.base === openPrimary ? 'open' : group.base)}
                   aria-expanded={openPrimary === group.base}
                 >
                   <span className="inline-block w-6 h-6 rounded mr-2 flex items-center justify-center text-lg" style={{ background: group.emotions[0].color }}>
@@ -104,11 +112,12 @@ const EmotionDropdownSelector: React.FC<EmotionDropdownSelectorProps> = ({ selec
                       <button
                         key={emotion.id}
                         type="button"
-                        className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center border-b border-gray-200"
+                        className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center border-b border-gray-200 bg-gray-50"
                         onClick={() => { handleSelectEmotion(emotion); setOpenPrimary(null); }}
                       >
                         <span className="inline-block w-5 h-5 rounded mr-2" style={{ background: emotion.color }} />
-                        <span style={{ wordBreak: 'break-word', color: 'var(--color-text)' }}>{emotion.name}</span>
+                        <span style={{ wordBreak: 'break-word', color: 'var(--color-text)' }} >{emotion.name}</span>
+                          <EmotionInfo emotion={emotion} />
                       </button>
                     ))}
                   </div>
@@ -157,6 +166,16 @@ const EmotionDropdownSelector: React.FC<EmotionDropdownSelectorProps> = ({ selec
                   <span style={{ wordBreak: 'break-word', color: 'var(--color-text)' }}>{emotion.name}</span>
                 </span>
                 <div className="flex items-center space-x-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={emotion.intensity}
+                    onChange={(e) => handleIntensityChange(emotion.emotionId, Number(e.target.value))}
+                    className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    style={{ accentColor: getEmotionColor(emotion.emotionId) }}
+                    aria-label={`Intensidade para ${emotion.name}`}
+                  />
                   <span className="text-sm text-gray-600 w-8 text-right">{emotion.intensity}</span>
                   <button
                     type="button"
