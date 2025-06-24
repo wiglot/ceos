@@ -10,14 +10,27 @@ import EmotionDropdownSelector from './EmotionDropdownSelector';
 // useNavigate is still imported but not directly used for the primary navigation after submit due to blob URL issues.
 // It's good practice to keep it if other navigation aspects might use it or if the blob issue is resolved/circumvented differently later.
 import { useNavigate } from "react-router-dom";
+import useIsMobile from "../hooks/useIsMobile";
+import VoiceInputModal from "./VoiceInputModal";
+import VoiceEnabledTextArea from "./VoiceEnabledTextArea";
+import useVoiceRecognition from "../hooks/useVoiceRecognition";
 
 const ThoughtForm: React.FC = () => {
-  // const navigate = useNavigate(); // Kept for potential future use or other navigation needs
+  const navigate = useNavigate();
   const [entries, setEntries] = useLocalStorage<DysfunctionalThoughtEntry[]>(
     "dysfunctionalThoughts",
     [],
     { encrypt: true }
   );
+
+  // Voice Input State
+  const isMobile = useIsMobile();
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [
+    dontShowVoiceModal,
+    setDontShowVoiceModal,
+  ] = useLocalStorage<boolean>("dontShowVoiceModal", false);
+  const [activeVoiceField, setActiveVoiceField] = useState<string | null>(null);
 
   // 1. Date
   const [date, setDate] = useState<string>(
@@ -44,6 +57,37 @@ const ThoughtForm: React.FC = () => {
     useState<SelectedEmotion[]>([]);
   const [reassessmentActionPlan, setReassessmentActionPlan] =
     useState<string>("");
+
+  const handleVoiceResult = useCallback(
+    (transcript: string) => {
+      if (!activeVoiceField) return;
+
+      const setters: Record<
+        string,
+        React.Dispatch<React.SetStateAction<string>>
+      > = {
+        situation: setSituation,
+        newThought: setNewThoughtText,
+        newAlternative: setNewAlternativeText,
+        actionPlan: setReassessmentActionPlan,
+      };
+
+      const setter = setters[activeVoiceField];
+      if (setter) {
+        setter((prevText) =>
+          prevText ? `${prevText.trim()} ${transcript}` : transcript,
+        );
+      }
+    },
+    [activeVoiceField],
+  );
+
+  const {
+    isListening,
+    startListening,
+    stopListening,
+    hasRecognitionSupport,
+  } = useVoiceRecognition(handleVoiceResult);
 
   useEffect(() => {
     // Sincroniza as emoções de reavaliação com as emoções iniciais,
@@ -174,6 +218,47 @@ const ThoughtForm: React.FC = () => {
     setReassessmentActionPlan("");
   };
 
+  const handleVoiceClick = (fieldName: string) => {
+    if (isListening) {
+      if (hasRecognitionSupport) {
+        stopListening();
+      }
+      setActiveVoiceField(null);
+      return;
+    }
+
+    setActiveVoiceField(fieldName);
+    if (isMobile && !dontShowVoiceModal) {
+      setModalOpen(true);
+    } else if (hasRecognitionSupport) {
+      startListening();
+    }
+  };
+
+  const startApiListening = () => {
+    if (isMobile && !dontShowVoiceModal) {
+      setModalOpen(true);
+    } else {
+      startListening();
+    }
+  }
+
+  const handleModalConfirm = () => {
+    setModalOpen(false);
+    if (dontShowVoiceModal) {
+      setDontShowVoiceModal(true);
+    }
+    if (hasRecognitionSupport) {
+      startListening();
+    }
+    // For fallback, the click is handled in the component
+  };
+
+  const handleModalClose = () => {
+    setModalOpen(false);
+    setActiveVoiceField(null);
+  };
+
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
 
@@ -204,11 +289,20 @@ const ThoughtForm: React.FC = () => {
     }, 0);
   };
 
+  const activeListening = isListening || (!hasRecognitionSupport && !!activeVoiceField);
+
   return (
     <form
       onSubmit={handleSubmit}
       className="space-y-8 bg-white p-6 sm:p-8 md:p-10 shadow-xl rounded-lg"
     >
+      <VoiceInputModal
+        isOpen={isModalOpen}
+        onConfirm={handleModalConfirm}
+        onClose={handleModalClose}
+        dontShowAgain={dontShowVoiceModal}
+        setDontShowAgain={setDontShowVoiceModal}
+      />
       <h1 className="text-3xl font-bold text-sky-700 mb-8 text-center">
         Registro de Pensamento Disfuncional
       </h1>
@@ -232,25 +326,21 @@ const ThoughtForm: React.FC = () => {
       </div>
 
       {/* 2. Situação */}
-      <div>
-        <label
-          htmlFor="situation"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          2. Descrição da Situação:
-        </label>
-        <p className="text-xs text-gray-500 mb-2">
-          Local, momento, com quem estava, o que fazia, o que falavam, etc.
-        </p>
-        <textarea
-          id="situation"
-          value={situation}
-          onChange={handleSituationChange}
-          rows={4}
-          required
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm resize-vertical"
-        ></textarea>
-      </div>
+      <VoiceEnabledTextArea
+        id="situation"
+        label="2. Descrição da Situação:"
+        subLabel="Local, momento, com quem estava, o que fazia, o que falavam, etc."
+        value={situation}
+        onChange={handleSituationChange}
+        rows={4}
+        required
+        showVoiceButton={isMobile}
+        onVoiceClick={() => handleVoiceClick("situation")}
+        isListening={activeListening && activeVoiceField === "situation"}
+        onVoiceResult={handleVoiceResult}
+        startApiListening={startApiListening}
+        hasApiSupport={hasRecognitionSupport}
+      />
 
       {/* 3. Emoções Iniciais */}
       <EmotionDropdownSelector
@@ -311,19 +401,19 @@ const ThoughtForm: React.FC = () => {
           ))}
         </div>
         <div className="mt-4 space-y-3 p-3 border-t border-gray-200">
-          <label
-            htmlFor="newThoughtText"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Adicionar novo pensamento:
-          </label>
-          <textarea
+          <VoiceEnabledTextArea
             id="newThoughtText"
+            label="Adicionar novo pensamento:"
             value={newThoughtText}
             onChange={handleNewThoughtTextChange}
             rows={2}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm resize-vertical"
-          ></textarea>
+            showVoiceButton={isMobile}
+            onVoiceClick={() => handleVoiceClick("newThought")}
+            isListening={activeListening && activeVoiceField === "newThought"}
+            onVoiceResult={handleVoiceResult}
+            startApiListening={startApiListening}
+            hasApiSupport={hasRecognitionSupport}
+          />
           <div className="flex items-center space-x-3">
             <label
               htmlFor="newThoughtConviction"
@@ -411,19 +501,19 @@ const ThoughtForm: React.FC = () => {
           ))}
         </div>
         <div className="mt-4 space-y-3 p-3 border-t border-gray-200">
-          <label
-            htmlFor="newAlternativeText"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Adicionar nova resposta alternativa:
-          </label>
-          <textarea
+          <VoiceEnabledTextArea
             id="newAlternativeText"
+            label="Adicionar nova resposta alternativa:"
             value={newAlternativeText}
             onChange={handleNewAlternativeTextChange}
             rows={2}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm resize-vertical"
-          ></textarea>
+            showVoiceButton={isMobile}
+            onVoiceClick={() => handleVoiceClick("newAlternative")}
+            isListening={activeListening && activeVoiceField === "newAlternative"}
+            onVoiceResult={handleVoiceResult}
+            startApiListening={startApiListening}
+            hasApiSupport={hasRecognitionSupport}
+          />
           <div className="flex items-center space-x-3">
             <label
               htmlFor="newAlternativeBelief"
@@ -515,19 +605,19 @@ const ThoughtForm: React.FC = () => {
 
         {/* Plano de Ação */}
         <div>
-          <label
-            htmlFor="actionPlan"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            O que pode ser feito agora diante da situação?
-          </label>
-          <textarea
+          <VoiceEnabledTextArea
             id="actionPlan"
+            label="O que pode ser feito agora diante da situação?"
             value={reassessmentActionPlan}
             onChange={handleReassessmentActionPlanChange}
             rows={3}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm resize-vertical"
-          ></textarea>
+            showVoiceButton={isMobile}
+            onVoiceClick={() => handleVoiceClick("actionPlan")}
+            isListening={activeListening && activeVoiceField === "actionPlan"}
+            onVoiceResult={handleVoiceResult}
+            startApiListening={startApiListening}
+            hasApiSupport={hasRecognitionSupport}
+          />
         </div>
       </div>
 
